@@ -9,8 +9,15 @@ Globals:
     Environment:
       Variables:
         ENV: dev
+        S3_BUCKET: !Ref EventsBucket
 
 Resources:
+
+  EventsBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub "mini-cdp-events-${AWS::AccountId}"
+
   IngestionFunction:
     Type: AWS::Serverless::Function
     Properties:
@@ -18,6 +25,9 @@ Resources:
       CodeUri: src/ingestion/
       Handler: lambda_function.lambda_handler
       Description: Lambda de ingestão de eventos da Mini CDP
+      Policies:
+        - S3WritePolicy:
+            BucketName: !Ref EventsBucket
       Events:
         ApiEvent:
           Type: Api
@@ -29,3 +39,6 @@ Outputs:
   ApiEndpoint:
     Description: URL da API de ingestão
     Value: !Sub "https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/events"
+  EventsBucket:
+    Description: Nome do bucket S3
+    Value: !Ref EventsBucket
