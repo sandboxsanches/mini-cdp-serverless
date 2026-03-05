@@ -2,14 +2,16 @@ import json
 import os
 import boto3
 from datetime import datetime, timezone
+from decimal import Decimal
 
-# Cliente S3 — criado fora do handler para reutilizar entre execuções
+# Clientes AWS — criados fora do handler para reutilizar entre execuções
 s3 = boto3.client("s3")
+dynamodb = boto3.resource("dynamodb")
 
 def lambda_handler(event, context):
     """
     Lambda de ingestão de eventos da Mini CDP
-    Recebe um evento, valida, e salva no S3
+    Recebe um evento, salva no S3 e consolida perfil no DynamoDB
     """
 
     print("Evento recebido:", json.dumps(event))
@@ -47,7 +49,7 @@ def lambda_handler(event, context):
         "receivedAt": now.isoformat()
     }
 
-    # Salva no S3
+    # 1. Salva evento bruto no S3
     bucket_name = os.environ["S3_BUCKET"]
     s3_key = f"events/{now.year}/{now.month:02d}/{now.day:02d}/{user_id}_{event_name}_{int(now.timestamp())}.json"
 
@@ -57,8 +59,11 @@ def lambda_handler(event, context):
         Body=json.dumps(processed_event),
         ContentType="application/json"
     )
-
     print(f"Evento salvo no S3: s3://{bucket_name}/{s3_key}")
+
+    # 2. Consolida perfil no DynamoDB
+    table = dynamodb.Table(os.environ["PROFILES_TABLE"])
+    update_profile(table, user_id, event_name, properties, now)
 
     return {
         "statusCode": 200,
@@ -67,3 +72,36 @@ def lambda_handler(event, context):
             "s3Key": s3_key
         })
     }
+
+
+def update_profile(table, user_id, event_name, properties, now):
+    """
+    Atualiza ou cria o perfil do usuário no DynamoDB
+    Usa UpdateItem para atualizar campos específicos sem sobrescrever o perfil inteiro
+    """
+
+    # Valores a incrementar/atualizar
+    revenue = Decimal(str(properties.get("value", 0)))
+    is_purchase = event_name == "purchase"
+
+    table.update_item(
+        Key={"userId": user_id},
+        UpdateExpression="""
+            SET lastSeen = :lastSeen,
+                lastEvent = :lastEvent,
+                updatedAt = :updatedAt
+            ADD totalEvents :one,
+                totalPurchases :isPurchase,
+                totalRevenue :revenue
+        """,
+        ExpressionAttributeValues={
+            ":lastSeen": now.isoformat(),
+            ":lastEvent": event_name,
+            ":updatedAt": now.isoformat(),
+            ":one": 1,
+            ":isPurchase": 1 if is_purchase else 0,
+            ":revenue": revenue
+        }
+    )
+
+    print(f"Perfil atualizado no DynamoDB: {user_id}")

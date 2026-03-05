@@ -10,12 +10,25 @@ Globals:
         ENV: dev
         S3_BUCKET:
           Ref: EventsBucket
+        PROFILES_TABLE:
+          Ref: ProfilesTable
 Resources:
   EventsBucket:
     Type: AWS::S3::Bucket
     Properties:
       BucketName:
         Fn::Sub: mini-cdp-events-${AWS::AccountId}
+  ProfilesTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: mini-cdp-profiles
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+      - AttributeName: userId
+        AttributeType: S
+      KeySchema:
+      - AttributeName: userId
+        KeyType: HASH
   IngestionFunction:
     Type: AWS::Serverless::Function
     Properties:
@@ -27,6 +40,9 @@ Resources:
       - S3WritePolicy:
           BucketName:
             Ref: EventsBucket
+      - DynamoDBCrudPolicy:
+          TableName:
+            Ref: ProfilesTable
       Events:
         ApiEvent:
           Type: Api
@@ -44,3 +60,7 @@ Outputs:
     Description: Nome do bucket S3
     Value:
       Ref: EventsBucket
+  ProfilesTable:
+    Description: Nome da tabela DynamoDB
+    Value:
+      Ref: ProfilesTable
