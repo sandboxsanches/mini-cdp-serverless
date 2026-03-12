@@ -51,11 +51,34 @@ Resources:
             Method: post
     Metadata:
       SamResourceId: IngestionFunction
+  ProfileFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: mini-cdp-profile
+      CodeUri: ProfileFunction
+      Handler: lambda_function.lambda_handler
+      Description: Lambda de consulta de perfil da Mini CDP
+      Policies:
+      - DynamoDBReadPolicy:
+          TableName:
+            Ref: ProfilesTable
+      Events:
+        ApiEvent:
+          Type: Api
+          Properties:
+            Path: /profile/{userId}
+            Method: get
+    Metadata:
+      SamResourceId: ProfileFunction
 Outputs:
   ApiEndpoint:
     Description: "URL da API de ingest\xE3o"
     Value:
       Fn::Sub: https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/events
+  ProfileEndpoint:
+    Description: URL da API de consulta de perfil
+    Value:
+      Fn::Sub: https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/profile/{userId}
   EventsBucket:
     Description: Nome do bucket S3
     Value:

@@ -9,4 +9,13 @@ manifest_hash = ""
 packagetype = "Zip"
 functions = ["IngestionFunction"]
 
+[function_build_definitions.94ee18f2-3d30-405f-ac5f-459c94cf6433]
+codeuri = "E:\\Projetos\\mini-cdp-serverless\\src\\profile"
+runtime = "python3.14"
+architecture = "x86_64"
+handler = "lambda_function.lambda_handler"
+manifest_hash = ""
+packagetype = "Zip"
+functions = ["ProfileFunction"]
+
 [layer_build_definitions]
